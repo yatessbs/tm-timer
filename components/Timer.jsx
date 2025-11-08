@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 
-export default function Timer({ green=300, yellow=360, red=420 }) {
+export default function Timer({ green=300, yellow=360, red=420, speechId }) {
   const [seconds, setSeconds] = useState(0);
   const [running, setRunning] = useState(false);
   const [g, setG] = useState(green);
@@ -21,11 +21,25 @@ export default function Timer({ green=300, yellow=360, red=420 }) {
     return () => intervalRef.current && clearInterval(intervalRef.current);
   }, [running]);
 
+  async function stopAndSave() {
+    setRunning(false);
+    if (!speechId) return;
+    try {
+      await fetch(`/api/speeches/${speechId}/elapsed`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ elapsedSeconds: seconds })
+      });
+    } catch (e) {
+      console.error("Failed to save elapsed:", e);
+    }
+  }
+
   const bg =
-    seconds >= r ? "#b00020" :        // red
-    seconds >= y ? "#e0a800" :        // yellow
-    seconds >= g ? "#1e7e34" :        // green
-    "#0a0a0a";                        // neutral
+    seconds >= r ? "#b00020" :
+    seconds >= y ? "#e0a800" :
+    seconds >= g ? "#1e7e34" :
+    "#0a0a0a";
 
   const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
   const ss = String(seconds % 60).padStart(2, "0");
@@ -52,6 +66,7 @@ export default function Timer({ green=300, yellow=360, red=420 }) {
       <div style={{ display:"flex", gap:8 }}>
         <button onClick={()=>setRunning(true)}>Start</button>
         <button onClick={()=>setRunning(false)}>Pause</button>
+        <button onClick={stopAndSave}>Stop & Save</button>
         <button onClick={()=>{ setSeconds(0); setRunning(false); }}>Reset</button>
       </div>
     </div>
