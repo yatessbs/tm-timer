@@ -2,7 +2,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
-export default function LoginForm() {
+export default function Loginform() {
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
   const router = useRouter();
