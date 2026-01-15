@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 export default function Timer({ speechId }) {
+  const [currentSpeechId, setCurrentSpeechId] = useState(speechId ?? null);
   const [seconds, setSeconds] = useState(0);
   const [running, setRunning] = useState(false);
 
@@ -10,9 +11,17 @@ export default function Timer({ speechId }) {
   const [green, setGreen]   = useState(300);
   const [yellow, setYellow] = useState(360);
   const [red, setRed]       = useState(420);
+  const [nextSpeakerName, setNextSpeakerName] = useState("");
+  const [nextSpeechTitle, setNextSpeechTitle] = useState("");
+  const [nextGreen, setNextGreen] = useState(300);
+  const [nextYellow, setNextYellow] = useState(360);
+  const [nextRed, setNextRed] = useState(420);
+  const [creatingNext, setCreatingNext] = useState(false);
 
   const tickRef = useRef(null);
-
+  const lastPhaseRef = useRef("none");
+  const pulseTimeoutRef = useRef(null);
+  const [pulseOn, setPulseOn] = useState(false);
   // load presets for this speech
   useEffect(() => {
     let ignore = false;
@@ -23,9 +32,18 @@ export default function Timer({ speechId }) {
         if (!res.ok) return;
         const p = await res.json();
         if (!ignore) {
-          setGreen(Number(p.green_seconds ?? 300));
-          setYellow(Number(p.yellow_seconds ?? 360));
-          setRed(Number(p.red_seconds ?? 420));
+          const g = Number(p.green_seconds ?? 300);
+          const y = Number(p.yellow_seconds ?? 360);
+          const r = Number(p.red_seconds ?? 420);
+
+          setGreen(g);
+          setYellow(y);
+          setRed(r);
+
+          // default next speech gates to the same values
+          setNextGreen(g);
+          setNextYellow(y);
+          setNextRed(r);
         }
       } catch {}
     }
@@ -46,7 +64,19 @@ export default function Timer({ speechId }) {
 
   function start() { setRunning(true); }
   function pause() { setRunning(false); }
-  function reset() { setRunning(false); setSeconds(0); }
+  function reset() {
+    setRunning(false);
+    setSeconds(0);
+    setNextSpeakerName("");
+    setNextSpeechTitle("");
+
+    setPulseOn(false);
+    lastPhaseRef.current = "none";
+    if (pulseTimeoutRef.current) {
+      clearTimeout(pulseTimeoutRef.current);
+      pulseTimeoutRef.current = null;
+    }
+  }
 
   // compute visual phase
   const phase =
@@ -60,16 +90,75 @@ export default function Timer({ speechId }) {
     phase === "yellow" ? "#fff5cc" :
     phase === "green"  ? "#e8ffe8" : "#f6f6f6";
 
+    useEffect(() => {
+    const prev = lastPhaseRef.current;
+    const curr = phase;
+
+    if (curr !== "none" && curr !== prev) {
+      if (pulseTimeoutRef.current) clearTimeout(pulseTimeoutRef.current);
+      setPulseOn(true);
+      pulseTimeoutRef.current = setTimeout(() => setPulseOn(false), 5000);
+    }
+
+    lastPhaseRef.current = curr;
+  }, [phase]);
   // optional subtle blink when overtime
   const bannerStyle = {
-    padding: 10,
-    borderRadius: 10,
-    background: bg,
-    border: "1px solid #ddd",
-    ...(overtime ? { animation: "blink 1s step-start 0s infinite" } : {})
+  padding: 10,
+  borderRadius: 10,
+  background: bg,
+  border: "1px solid #ddd",
   };
 
   // Save
+  async function createNextSpeech() {
+  if (!nextSpeakerName.trim()) {
+    alert("Enter the next speaker name.");
+    return;
+  }
+
+  setCreatingNext(true);
+  try {
+    const res = await fetch("/api/speeches", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        // This route supports either an existing sessionId or a sessionName.
+        // If you are not passing a sessionId today, keep sessionName as a fallback.
+        sessionName: "Toastmasters Session",
+
+        speakerName: nextSpeakerName.trim(),
+        title: nextSpeechTitle.trim() || null,
+        greenSeconds: Number(nextGreen),
+        yellowSeconds: Number(nextYellow),
+        redSeconds: Number(nextRed),
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data?.error ?? `Create speech failed (${res.status})`);
+    }
+
+    // Switch Timer to the new speechId
+    setCurrentSpeechId(data.speechId);
+
+    // Apply gates immediately
+    setGreen(Number(nextGreen));
+    setYellow(Number(nextYellow));
+    setRed(Number(nextRed));
+
+    // Reset the clock
+    setRunning(false);
+    setSeconds(0);
+
+    alert(`Next speech ready. Speech ID: ${data.speechId}`);
+  } catch (e) {
+    alert(e.message || String(e));
+  } finally {
+    setCreatingNext(false);
+  }
+}
   async function stopAndSave() {
     setRunning(false);
     if (!speechId) { alert("No speechId set."); return; }
@@ -95,7 +184,16 @@ export default function Timer({ speechId }) {
   const ss = String(seconds % 60).padStart(2, "0");
 
   return (
-    <section style={{ display: "grid", gap: 12 }}>
+    <section
+      style={{
+        display: "grid",
+        gap: 12,
+        padding: 12,
+        borderRadius: 12,
+        background: bg, // optional: makes the whole panel take the phase color
+        ...(pulseOn ? { animation: "gateBlink 0.6s steps(1,end) infinite" } : {}),
+      }}
+  >
       {/* color banner */}
       <div style={bannerStyle}>
         <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
@@ -124,14 +222,69 @@ export default function Timer({ speechId }) {
         <button onClick={reset} disabled={running}>Reset</button>
         <button onClick={stopAndSave} disabled={seconds === 0}>Stop &amp; Save</button>
       </div>
+      
+      {/* Next Speech panel (appears when timer is reset / not running) */}
+      {!running && seconds === 0 ? (
+        <div style={{ border: "1px solid #ddd", borderRadius: 12, padding: 12, display: "grid", gap: 10 }}>
+          <strong>Next Speech</strong>
+
+          <input
+            placeholder="Next speaker name"
+            value={nextSpeakerName}
+            onChange={(e) => setNextSpeakerName(e.target.value)}
+          />
+
+          <input
+            placeholder="Next speech title (optional)"
+            value={nextSpeechTitle}
+            onChange={(e) => setNextSpeechTitle(e.target.value)}
+          />
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <label>
+              Green (s)
+              <input
+                type="number"
+                value={nextGreen}
+                onChange={(e) => setNextGreen(Number(e.target.value || 0))}
+                style={{ width: 90, marginLeft: 6 }}
+              />
+            </label>
+
+            <label>
+              Yellow (s)
+              <input
+                type="number"
+                value={nextYellow}
+                onChange={(e) => setNextYellow(Number(e.target.value || 0))}
+                style={{ width: 90, marginLeft: 6 }}
+              />
+            </label>
+
+            <label>
+              Red (s)
+              <input
+                type="number"
+                value={nextRed}
+                onChange={(e) => setNextRed(Number(e.target.value || 0))}
+                style={{ width: 90, marginLeft: 6 }}
+              />
+            </label>
+          </div>
+
+          <button onClick={createNextSpeech} disabled={!nextSpeakerName.trim() || creatingNext}>
+            {creatingNext ? "Creating..." : "Create Next Speech"}
+          </button>
+        </div>
+      ) : null}
 
       <style>{`
-        @keyframes blink { 50% { opacity: 0.5; } }
+        @keyframes gateBlink { 50% { opacity: 0.25; } }
         button { padding: 8px 12px; border-radius: 8px; border: 1px solid #bbb; background:#fff; cursor:pointer; }
         button:disabled { opacity: 0.6; cursor: not-allowed; }
       `}</style>
 
-      <small>Speech ID: <b>{speechId ?? "—"}</b></small>
+      <small>Speech ID: <b>{currentSpeechId ?? "—"}</b></small>
     </section>
   );
 }
