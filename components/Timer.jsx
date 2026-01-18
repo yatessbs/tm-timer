@@ -67,7 +67,7 @@ export default function Timer({ speechId }) {
   function reset() {
     setRunning(false);
     setSeconds(0);
-    setNextspeakerId("");
+    setNextSpeakerId("");
     setNextSpeechTitle("");
 
     setPulseOn(false);
@@ -112,7 +112,7 @@ export default function Timer({ speechId }) {
 
   // Save
   async function createNextSpeech() {
-  if (!nextspeakerId.trim()) {
+  if (!nextSpeakerId.trim()) {
     alert("Enter the next speaker name.");
     return;
   }
@@ -127,7 +127,7 @@ export default function Timer({ speechId }) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        speakerId: nextspeakerId.trim(),
+        speakerId: nextSpeakerId.trim(),
         title: nextSpeechTitle.trim() || null,
         greenSeconds: Number(nextGreen),
         yellowSeconds: Number(nextYellow),
@@ -230,8 +230,8 @@ export default function Timer({ speechId }) {
 
           <input
             placeholder="Next speaker name"
-            value={nextspeakerId}
-            onChange={(e) => setNextspeakerId(e.target.value)}
+            value={nextSpeakerId}
+            onChange={(e) => setNextSpeakerId(e.target.value)}
           />
 
           <input
@@ -272,7 +272,7 @@ export default function Timer({ speechId }) {
             </label>
           </div>
 
-          <button onClick={createNextSpeech} disabled={!nextspeakerId.trim() || creatingNext}>
+          <button onClick={createNextSpeech} disabled={!nextSpeakerId.trim() || creatingNext}>
             {creatingNext ? "Creating..." : "Create Next Speech"}
           </button>
         </div>
