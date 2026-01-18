@@ -11,7 +11,7 @@ export default function Timer({ speechId }) {
   const [green, setGreen]   = useState(300);
   const [yellow, setYellow] = useState(360);
   const [red, setRed]       = useState(420);
-  const [nextSpeakerName, setNextSpeakerName] = useState("");
+  const [nextSpeakerId, setNextSpeakerId] = useState("");
   const [nextSpeechTitle, setNextSpeechTitle] = useState("");
   const [nextGreen, setNextGreen] = useState(300);
   const [nextYellow, setNextYellow] = useState(360);
@@ -67,7 +67,7 @@ export default function Timer({ speechId }) {
   function reset() {
     setRunning(false);
     setSeconds(0);
-    setNextSpeakerName("");
+    setNextspeakerId("");
     setNextSpeechTitle("");
 
     setPulseOn(false);
@@ -112,22 +112,22 @@ export default function Timer({ speechId }) {
 
   // Save
   async function createNextSpeech() {
-  if (!nextSpeakerName.trim()) {
+  if (!nextspeakerId.trim()) {
     alert("Enter the next speaker name.");
     return;
   }
 
   setCreatingNext(true);
   try {
-    const res = await fetch(`/api/sessions/${sessionId}/speeches`, {
+    const sid = session?.id;
+    if (!sid) {
+      throw new Error("No active session. Create a session first.");
+    }
+    const res = await fetch(`/api/sessions/${sid}/speeches`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        // This route supports either an existing sessionId or a sessionName.
-        // If you are not passing a sessionId today, keep sessionName as a fallback.
-        sessionName: "Toastmasters Session",
-
-        speakerName: nextSpeakerName.trim(),
+        speakerId: nextspeakerId.trim(),
         title: nextSpeechTitle.trim() || null,
         greenSeconds: Number(nextGreen),
         yellowSeconds: Number(nextYellow),
@@ -230,8 +230,8 @@ export default function Timer({ speechId }) {
 
           <input
             placeholder="Next speaker name"
-            value={nextSpeakerName}
-            onChange={(e) => setNextSpeakerName(e.target.value)}
+            value={nextspeakerId}
+            onChange={(e) => setNextspeakerId(e.target.value)}
           />
 
           <input
@@ -272,7 +272,7 @@ export default function Timer({ speechId }) {
             </label>
           </div>
 
-          <button onClick={createNextSpeech} disabled={!nextSpeakerName.trim() || creatingNext}>
+          <button onClick={createNextSpeech} disabled={!nextspeakerId.trim() || creatingNext}>
             {creatingNext ? "Creating..." : "Create Next Speech"}
           </button>
         </div>

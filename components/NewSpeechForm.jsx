@@ -4,7 +4,7 @@ import { useState } from "react";
 
 export default function NewSpeechForm({ onReady }) {
   const [sessionName, setSessionName] = useState("");
-  const [speakerName, setSpeakerName] = useState("");
+  const [speakerId, setSpeakerId] = useState("");
   const [title, setTitle] = useState("");
   const [green, setGreen] = useState(300);
   const [yellow, setYellow] = useState(360);
@@ -17,17 +17,21 @@ export default function NewSpeechForm({ onReady }) {
     setMsg("");
     setBusy(true);
     try {
-      const res = await fetch(`/api/sessions/${sessionId}/speeches`, {
+      const sid = session?.id;
+      if (!sid) {
+        throw new Error("No active session. Create a session first.");
+      }
+      const res = await fetch(`/api/sessions/${sid}/speeches`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          speaker_id: Number(speakerId),
-          title,
-          elapsed_seconds: 0,
-          greenSeconds: Number(green),
-          yellowSeconds: Number(yellow),
-          redSeconds: Number(red),
-        }),
+        speaker_id: Number(speakerId),
+        title: nextSpeechTitle.trim() || null,
+        elapsed_seconds: 0,
+        greenSeconds: Number(nextGreen),
+        yellowSeconds: Number(nextYellow),
+        redSeconds: Number(nextRed),
+      })
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
@@ -45,11 +49,23 @@ export default function NewSpeechForm({ onReady }) {
       <h2>Create Speech</h2>
 
       <label>Session Name
-        <input value={sessionName} onChange={e=>setSessionName(e.target.value)} placeholder="e.g., 2025-11-10 Club #1234" />
+        <label>Session Name
+        <select
+          required
+          value={speakerId}
+          onChange={(e) => setSpeakerId(e.target.value)}
+        >
+          <option value="">-- Select speaker --</option>
+          {participants.map((p) => (
+            <option key={p.id} value={String(p.id)}>
+              {p.name}{p.title_position ? ` — ${p.title_position}` : ""}
+            </option>
+          ))}
+        </select>
       </label>
 
       <label>Speaker Name*
-        <input required value={speakerName} onChange={e=>setSpeakerName(e.target.value)} placeholder="Jane Doe" />
+        <input required value={speakerId} onChange={e=>setspeakerId(e.target.value)} placeholder="Jane Doe" />
       </label>
 
       <label>Speech Title
