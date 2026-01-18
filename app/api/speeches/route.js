@@ -28,8 +28,14 @@ export async function POST(req) {
     let sid = sessionId ?? null;
     if (!sid) {
       const s = await client.query(
-        "INSERT INTO sessions(name) VALUES ($1) RETURNING id",
-        [sessionName || "Toastmasters Session"]
+        `INSERT INTO sessions (name, session_date, location)
+        VALUES ($1, $2::date, $3)
+        RETURNING id`,
+        [
+          sessionName || "Toastmasters Session",
+          new Date().toISOString().slice(0, 10), // YYYY-MM-DD
+          "TBD",
+        ]
       );
       sid = s.rows[0].id;
     }
