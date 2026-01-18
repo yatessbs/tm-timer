@@ -17,13 +17,13 @@ export default function NewSpeechForm({ onReady }) {
     setMsg("");
     setBusy(true);
     try {
-      const res = await fetch("/api/speeches", {
+      const res = await fetch(`/api/sessions/${sessionId}/speeches`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sessionName: sessionName || undefined,
-          speakerName,
-          title: title || undefined,
+          speaker_id: Number(speakerId),
+          title,
+          elapsed_seconds: 0,
           greenSeconds: Number(green),
           yellowSeconds: Number(yellow),
           redSeconds: Number(red),

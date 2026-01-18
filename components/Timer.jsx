@@ -119,7 +119,7 @@ export default function Timer({ speechId }) {
 
   setCreatingNext(true);
   try {
-    const res = await fetch("/api/speeches", {
+    const res = await fetch(`/api/sessions/${sessionId}/speeches`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
