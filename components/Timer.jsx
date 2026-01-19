@@ -5,6 +5,12 @@ import { useEffect, useRef, useState } from "react";
 export default function Timer({ speechId }) {
   const [currentSpeechId, setCurrentSpeechId] = useState(speechId ?? null);
   const [seconds, setSeconds] = useState(0);
+  const [session, setSession] = useState(null);
+  const [sessionName, setSessionName] = useState("");
+  const [sessionDate, setSessionDate] = useState("");
+  const [sessionLocation, setSessionLocation] = useState("");
+
+  const [participants, setParticipants] = useState([]);
   const [running, setRunning] = useState(false);
 
   // thresholds loaded from DB
@@ -26,9 +32,9 @@ export default function Timer({ speechId }) {
   useEffect(() => {
     let ignore = false;
     async function load() {
-      if (!speechId) return;
+      if (!currentSpeechId) return;
       try {
-        const res = await fetch(`/api/speeches/presets?id=${speechId}`, { cache: "no-store" });
+        const res = await fetch(`/api/speeches/presets?id=${currentSpeechId}`, { cache: "no-store" });
         if (!res.ok) return;
         const p = await res.json();
         if (!ignore) {
@@ -49,8 +55,34 @@ export default function Timer({ speechId }) {
     }
     load();
     return () => { ignore = true; };
-  }, [speechId]);
+  }, [currentSpeechId]);
 
+  async function loadParticipants() {
+  const res = await fetch("/api/participants", { cache: "no-store" });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error ?? "Failed to load participants.");
+  setParticipants(data.participants ?? []);
+}
+
+useEffect(() => {
+  loadParticipants().catch((e) => console.error(e));
+  }, []);
+
+  async function createSession() {
+    const res = await fetch("/api/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: sessionName,
+        session_date: sessionDate,
+        location: sessionLocation,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error ?? "Failed to create session.");
+    setSession(data.session);
+  }
+  
   // start/stop ticking
   useEffect(() => {
     if (running) {
@@ -112,8 +144,8 @@ export default function Timer({ speechId }) {
 
   // Save
   async function createNextSpeech() {
-  if (!nextSpeakerId.trim()) {
-    alert("Enter the next speaker name.");
+  if (!nextSpeakerId) {
+    alert("Select the next speaker.");
     return;
   }
 
@@ -127,8 +159,9 @@ export default function Timer({ speechId }) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        speakerId: nextSpeakerId.trim(),
+        speaker_id: Number(nextSpeakerId),
         title: nextSpeechTitle.trim() || null,
+        elapsed_seconds: 0,
         greenSeconds: Number(nextGreen),
         yellowSeconds: Number(nextYellow),
         redSeconds: Number(nextRed),
@@ -136,14 +169,25 @@ export default function Timer({ speechId }) {
     });
 
     const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data?.error ?? `Create speech failed (${res.status})`);
+
+if (!res.ok) {
+  throw new Error(data?.error ?? `Create speech failed (${res.status})`);
+}
+
+// Accept either { speech: { id } } OR { speechId }
+const newSpeechId = data?.speech?.id ?? data?.speechId;
+if (!newSpeechId) {
+  throw new Error("Create speech succeeded but no speech id was returned.");
     }
 
     // Switch Timer to the new speechId
-    setCurrentSpeechId(data.speechId);
+    setCurrentSpeechId(newSpeechId);
 
-    // Apply gates immediately
+    // Reset timer for the new speech
+    setRunning(false);
+    setSeconds(0);
+
+    // Apply gates immediately (so the big timer + thresholds match the new speech)
     setGreen(Number(nextGreen));
     setYellow(Number(nextYellow));
     setRed(Number(nextRed));
