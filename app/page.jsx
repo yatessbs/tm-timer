@@ -1,13 +1,5 @@
-import TimerHost from "@/components/TimerHost";
+import Timer from "./timer";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
-export default async function Home() {
-  return (
-    <main style={{ maxWidth: 800, margin: "40px auto", padding: 16 }}>
-      <h1>Toastmasters Timer</h1>
-      <TimerHost />
-    </main>
-  );
+export default function Page() {
+  return <Timer />;
 }

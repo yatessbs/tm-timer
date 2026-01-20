@@ -111,13 +111,12 @@ export default function Timer({ green = 300, yellow = 360, red = 420 }) {
     setParticipants(data.participants ?? []);
   }
 
-  async function loadSpeeches(sessionId) {
-    const res = await fetch(`/api/sessions/${sessionId}/speeches`, { cache: "no-store" });
+  async function loadSpeeches(sid) {
+    const res = await fetch(`/api/sessions/${sid}/speeches`, { cache: "no-store" });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error ?? "Failed to load speeches.");
     setSpeeches(data.speeches ?? []);
   }
-
   useEffect(() => {
     (async () => {
       try {

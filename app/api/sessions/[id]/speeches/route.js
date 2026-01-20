@@ -3,8 +3,9 @@ import { pool } from "@/lib/db";
 
 export const runtime = "nodejs";
 
-export async function GET(_req, { params }) {
-  const sessionId = Number(params.id);
+export async function GET(req, { params }) {
+  const { id } = await params;                 // unwrap params (Promise)
+  const sessionId = Number(id);
   if (!Number.isFinite(sessionId)) {
     return NextResponse.json({ error: "Invalid session id" }, { status: 400 });
   }
@@ -29,11 +30,12 @@ export async function GET(_req, { params }) {
 }
 
 export async function POST(req, { params }) {
-  const sessionId = Number(params.id);
+  const { id } = await params;         // <-- unwrap params Promise
+  const sessionId = Number(id);
   if (!Number.isFinite(sessionId)) {
     return NextResponse.json({ error: "Invalid session id" }, { status: 400 });
   }
-
+console.log("sessions/[id]/speeches params:", params);
   const body = await req.json();
   const speaker_id = Number(body?.speaker_id);
   const title = (body?.title ?? "").trim() || null;

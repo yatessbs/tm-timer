@@ -28,6 +28,7 @@ export default function Timer({ speechId }) {
   const lastPhaseRef = useRef("none");
   const pulseTimeoutRef = useRef(null);
   const [pulseOn, setPulseOn] = useState(false);
+  
   // load presets for this speech
   useEffect(() => {
     let ignore = false;
@@ -174,6 +175,22 @@ if (!res.ok) {
   throw new Error(data?.error ?? `Create speech failed (${res.status})`);
 }
 
+const [sessionSpeeches, setSessionSpeeches] = useState([]);
+
+async function loadSessionSpeeches(sid) {
+  const res = await fetch(`/api/sessions/${sid}/speeches`, { cache: "no-store" });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error ?? "Failed to load session speeches");
+      useEffect(() => {
+      if (!session?.id) return;
+
+      loadSessionSpeeches(session.id).catch(() => {
+        // swallow errors for now; UI will just show empty list
+      });
+    }, [session?.id]);
+  setSessionSpeeches(data.speeches ?? []);
+}
+
 // Accept either { speech: { id } } OR { speechId }
 const newSpeechId = data?.speech?.id ?? data?.speechId;
 if (!newSpeechId) {
@@ -255,6 +272,14 @@ if (!newSpeechId) {
       <div style={{ fontSize: 64, fontVariantNumeric: "tabular-nums", textAlign: "center" }}>
         {mm}:{ss}
       </div>
+
+      {session?.id ? (
+        <small>
+          Session: <b>{session.id}</b> | Current Speech: <b>{currentSpeechId ?? "—"}</b>
+        </small>
+      ) : (
+        <small>No active session</small>
+      )}
 
       {/* controls */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
