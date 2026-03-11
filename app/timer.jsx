@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 
 export default function Timer({ green = 300, yellow = 360, red = 420 }) {
   // ---------------------------
@@ -128,15 +129,15 @@ export default function Timer({ green = 300, yellow = 360, red = 420 }) {
   }, []);
 
   useEffect(() => {
-    if (!session?.id) return;
+    if (!session?.public_id) return;
     (async () => {
       try {
-        await loadSpeeches(session.id);
+        await loadSpeeches(session.public_id);
       } catch (e) {
         setError(e.message || String(e));
       }
     })();
-  }, [session?.id]);
+  }, [session?.public_id]);
 
   async function createSession() {
     setError("");
@@ -195,7 +196,7 @@ export default function Timer({ green = 300, yellow = 360, red = 420 }) {
   }
 
   async function saveCurrentSpeech() {
-    if (!session?.id) {
+    if (!session?.public_id) {
       setError("Create a session first.");
       return;
     }
@@ -207,7 +208,7 @@ export default function Timer({ green = 300, yellow = 360, red = 420 }) {
     setError("");
     setSaving(true);
     try {
-      const res = await fetch(`/api/sessions/${session.id}/speeches`, {
+      const res = await fetch(`/api/sessions/${session.public_id}/speeches`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -219,7 +220,7 @@ export default function Timer({ green = 300, yellow = 360, red = 420 }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? "Failed to save speech.");
 
-      await loadSpeeches(session.id);
+      await loadSpeeches(session.public_id);
 
       // Reset timer for next speech
       setRunning(false);
@@ -269,32 +270,44 @@ export default function Timer({ green = 300, yellow = 360, red = 420 }) {
             placeholder="Session name"
             value={sessionName}
             onChange={(e) => setSessionName(e.target.value)}
-            disabled={!!session?.id}
+            disabled={!!session?.public_id}
           />
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <input
               type="date"
               value={sessionDate}
               onChange={(e) => setSessionDate(e.target.value)}
-              disabled={!!session?.id}
+              disabled={!!session?.public_id}
               style={{ minWidth: 180 }}
             />
             <input
               placeholder="Location"
               value={sessionLocation}
               onChange={(e) => setSessionLocation(e.target.value)}
-              disabled={!!session?.id}
+              disabled={!!session?.public_id}
               style={{ flex: 1, minWidth: 220 }}
             />
           </div>
 
-          {!session?.id ? (
+          {!session?.public_id ? (
             <button onClick={createSession} disabled={!canCreateSession || saving}>
               {saving ? "Working..." : "Start Session"}
             </button>
           ) : (
-            <div style={{ fontSize: 14, color: "#333" }}>
-              Active: <strong>{session.name}</strong> ({session.session_date}) @ {session.location}
+            <div style={{ display: "grid", gap: 4 }}>
+              <div style={{ fontSize: 14, color: "#333" }}>
+                Active: <strong>{session.name}</strong> ({session.session_date}) @ {session.location}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+                <QRCodeSVG
+                  value={`${window.location.origin}/?session=${session.public_id}&pin=${session.pin}`}
+                  size={96}
+                />
+                <div style={{ fontSize: 13, color: "#555" }}>
+                  <div>Session PIN: <strong style={{ fontFamily: "monospace", letterSpacing: 2 }}>{session.pin}</strong></div>
+                  <div style={{ color: "#888", marginTop: 4 }}>Scan to connect controller device</div>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -304,7 +317,7 @@ export default function Timer({ green = 300, yellow = 360, red = 420 }) {
       <div style={{ border: "1px solid #ddd", borderRadius: 12, padding: 12, display: "grid", gap: 8 }}>
         <div style={{ fontWeight: 700 }}>Current Speech</div>
 
-        {!session?.id ? (
+        {!session?.public_id ? (
           <div style={{ color: "#555" }}>Create a session to begin adding speeches.</div>
         ) : (
           <>
@@ -400,25 +413,25 @@ export default function Timer({ green = 300, yellow = 360, red = 420 }) {
 
       {/* Timer controls + Save speech */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button onClick={() => setRunning(true)} disabled={!session?.id}>Start</button>
-        <button onClick={() => setRunning(false)} disabled={!session?.id}>Pause</button>
+        <button onClick={() => setRunning(true)} disabled={!session?.public_id}>Start</button>
+        <button onClick={() => setRunning(false)} disabled={!session?.public_id}>Pause</button>
         <button
           onClick={() => {
             setSeconds(0);
             setRunning(false);
           }}
-          disabled={!session?.id}
+          disabled={!session?.public_id}
         >
           Reset
         </button>
 
-        <button onClick={saveCurrentSpeech} disabled={!session?.id || !speakerId || saving}>
+        <button onClick={saveCurrentSpeech} disabled={!session?.public_id || !speakerId || saving}>
           {saving ? "Saving..." : "Save Speech (time)"}
         </button>
       </div>
 
       {/* Speech list */}
-      {session?.id ? (
+      {session?.public_id ? (
         <div style={{ border: "1px solid #ddd", borderRadius: 12, padding: 12 }}>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>Session Speeches</div>
           <table width="100%" cellPadding="6" style={{ borderCollapse: "collapse" }}>

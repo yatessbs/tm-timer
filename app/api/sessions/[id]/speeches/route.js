@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
+import { rateLimit, getClientIp } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function GET(req, { params }) {
-  const { id } = await params;                 // unwrap params (Promise)
-  const sessionId = Number(id);
-  if (!Number.isFinite(sessionId)) {
+  const { id } = await params;
+  if (!UUID_RE.test(id)) {
     return NextResponse.json({ error: "Invalid session id" }, { status: 400 });
   }
 
@@ -20,22 +22,27 @@ export async function GET(req, { params }) {
             p.email as speaker_email,
             p.title_position as speaker_title_position
      from public.speeches sp
+     join public.sessions se on se.public_id = $1
      join public.participants p on p.id = sp.speaker_id
-     where sp.session_id = $1
+     where sp.session_id = se.id
      order by sp.created_at asc`,
-    [sessionId]
+    [id]
   );
 
   return NextResponse.json({ speeches: rows });
 }
 
 export async function POST(req, { params }) {
-  const { id } = await params;         // <-- unwrap params Promise
-  const sessionId = Number(id);
-  if (!Number.isFinite(sessionId)) {
+  const ip = getClientIp(req);
+  if (!rateLimit(ip, { limit: 20, windowMs: 60_000 })) {
+    return NextResponse.json({ error: "Too many requests." }, { status: 429 });
+  }
+
+  const { id } = await params;
+  if (!UUID_RE.test(id)) {
     return NextResponse.json({ error: "Invalid session id" }, { status: 400 });
   }
-console.log("sessions/[id]/speeches params:", params);
+
   const body = await req.json();
   const speaker_id = Number(body?.speaker_id);
   const title = (body?.title ?? "").trim() || null;
@@ -49,10 +56,16 @@ console.log("sessions/[id]/speeches params:", params);
 
   const { rows } = await pool.query(
     `insert into public.speeches (session_id, speaker_id, title, elapsed_seconds)
-     values ($1, $2, $3, $4)
+     select se.id, $2, $3, $4
+     from public.sessions se
+     where se.public_id = $1
      returning id, session_id, speaker_id, title, elapsed_seconds, created_at`,
-    [sessionId, speaker_id, title, elapsed_seconds]
+    [id, speaker_id, title, elapsed_seconds]
   );
+
+  if (rows.length === 0) {
+    return NextResponse.json({ error: "Session not found." }, { status: 404 });
+  }
 
   return NextResponse.json({ speech: rows[0] }, { status: 201 });
 }

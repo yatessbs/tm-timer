@@ -29,13 +29,15 @@ export async function POST(req) {
       );
     }
 
+    const pin = String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0");
+
     const { rows } = await pool.query(
       `
-      INSERT INTO public.sessions (name, session_date, location)
-      VALUES ($1, $2::date, $3)
-      RETURNING id, name, session_date, location
+      INSERT INTO public.sessions (name, session_date, location, pin)
+      VALUES ($1, $2::date, $3, $4)
+      RETURNING id, public_id, name, session_date, location, pin
       `,
-      [name.trim(), session_date, location.trim()]
+      [name.trim(), session_date, location.trim(), pin]
     );
 
     return NextResponse.json({ session: rows[0] }, { status: 201 });
