@@ -24,3 +24,4 @@ pnpm-debug.log*
 .env*.local
 neon_schema.sql
 tree.txt
+.claude/settings.local.json
