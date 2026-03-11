@@ -339,6 +339,24 @@ export default function Timer({ green = 300, yellow = 360, red = 420 }) {
               </div>
             ) : null}
 
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 4 }}>
+              {[
+                { label: "Table Topics",    g: 60,  y: 90,  r: 120 },
+                { label: "Ice Breaker",     g: 240, y: 300, r: 360 },
+                { label: "Prepared Speech", g: 300, y: 360, r: 420 },
+                { label: "Evaluation",      g: 120, y: 150, r: 180 },
+              ].map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => { setG(p.g); setY(p.y); setR(p.r); }}
+                  style={{ fontSize: 12, padding: "4px 8px" }}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <label>
                 Green (s)
